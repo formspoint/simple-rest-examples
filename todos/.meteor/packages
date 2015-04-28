@@ -11,3 +11,4 @@ iron:router@0.9.4
 accounts-password
 simple:rest
 simple:json-routes
+simple:rest-accounts-password

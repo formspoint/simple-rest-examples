@@ -9,9 +9,6 @@
     <!-- Latest compiled and minified CSS -->
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css">
 
-    <!-- Optional theme -->
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap-theme.min.css">
-
     <style>
       html {
         padding-top: 20px;
@@ -54,6 +51,15 @@
         text-decoration: line-through;
         color: #999;
       }
+
+      .login-form input:first-child {
+        margin-bottom: 10px;
+      }
+
+      .login-form .text-danger {
+        margin-top: 10px;
+        margin-bottom: 0;
+      }
     </style>
   </head>
 
@@ -61,6 +67,64 @@
     <script type="text/jsx" charset="utf-8">
       // @jsx React.DOM
       var server = "http://localhost:3000/";
+
+      var LoginDialog = React.createClass({
+        getInitialState: function () {
+          return {
+            errorMessage: null
+          };
+        },
+        handleLoginSubmit: function (event) {
+          var self = this;
+
+          event.preventDefault();
+
+          var loginOptions = {
+            email: event.target.email.value,
+            password: event.target.password.value
+          };
+
+          $.ajax(server + "users/login", {
+            method: "post",
+            data: JSON.stringify(loginOptions),
+            contentType: "application/json",
+            success: function (data) {
+              self.props.onLoggedIn(data);
+            },
+            error: function (data) {
+              self.setState({
+                errorMessage: data.responseJSON.reason
+              });
+            }
+          });
+        },
+        render: function () {
+          var self = this;
+
+          var inside;
+          if (! self.props.loginData) {
+            var maybeError;
+            if (self.state.errorMessage) {
+              maybeError = <p className="text-danger">
+                {self.state.errorMessage}
+              </p>
+            }
+
+            inside = <form className="panel-body login-form" onSubmit={self.handleLoginSubmit}>
+              <input type="email" placeholder="Email" name="email" className="form-control input-sm" />
+              <input type="password" placeholder="Password" name="password" className="form-control input-sm" />
+              {maybeError}
+              <input type="submit" className="hidden" />
+            </form>
+          } else {
+            inside = <div className="panel-body">
+              You are logged in! Refresh to log out, haha.
+            </div>
+          }
+
+          return <div className="panel panel-default">{inside}</div>
+        }
+      });
 
       var Sidebar = React.createClass({
         getDefaultProps: function () {
@@ -76,6 +140,9 @@
           };
 
           return <div className="col-sm-4">
+            <LoginDialog
+              onLoggedIn={self.props.onLoggedIn}
+              loginData={self.props.loginData} />
             <ul className="nav nav-stacked nav-pills hidden-xs">{
               self.props.lists.map(function (list) {
                 var selectThisList = function (event) {
@@ -279,6 +346,11 @@
             });
           });
         },
+        saveLoginData: function (data) {
+          this.setState({
+            loginData: data
+          });
+        },
         setSelectedListId: function (id) {
           this.setState({
             selectedListId: id
@@ -295,7 +367,9 @@
               <Sidebar
                 selectedListId={self.state.selectedListId}
                 lists={self.state.lists}
-                setSelectedListId={self.setSelectedListId} />
+                setSelectedListId={self.setSelectedListId}
+                onLoggedIn={self.saveLoginData}
+                loginData={self.state.loginData} />
               <List listId={self.state.selectedListId}/>
             </div>
           </div>

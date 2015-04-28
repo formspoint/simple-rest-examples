@@ -68,6 +68,20 @@
       // @jsx React.DOM
       var server = "http://localhost:3000/";
 
+      var callMethod = function (methodName, data, callback) {
+        $.ajax(server + methodName, {
+            method: "post",
+            data: JSON.stringify(data),
+            contentType: "application/json",
+            success: function (data) {
+              callback(null, data);
+            },
+            error: function (data) {
+              callback(data.responseJSON);
+            }
+          });
+      }
+
       var LoginDialog = React.createClass({
         getInitialState: function () {
           return {
@@ -84,19 +98,15 @@
             password: event.target.password.value
           };
 
-          $.ajax(server + "users/login", {
-            method: "post",
-            data: JSON.stringify(loginOptions),
-            contentType: "application/json",
-            success: function (data) {
-              self.props.onLoggedIn(data);
-            },
-            error: function (data) {
+          callMethod("users/login", loginOptions, function (err, res) {
+            if (err) {
               self.setState({
-                errorMessage: data.responseJSON.reason
+                errorMessage: err.reason
               });
+            } else {
+              self.props.onLoggedIn(res);
             }
-          });
+          })
         },
         render: function () {
           var self = this;
@@ -119,6 +129,7 @@
           } else {
             inside = <div className="panel-body">
               You are logged in! Refresh to log out, haha.
+              Viewing private lists is not yet supported.
             </div>
           }
 
@@ -193,18 +204,12 @@
             return task;
           });
 
-          $.ajax(server + "methods/todos/update", {
-            method: "post",
-            data: JSON.stringify([
-              {_id: id},
-              {
-                $set: {
-                  checked: newCheckedValue
-                }
-              }
-            ]),
-            contentType: "application/json"
-          });
+          callMethod("methods/todos/update", [
+            {_id: id},
+            { $set: {
+                checked: newCheckedValue
+            } }
+          ]);
 
           this.setState({
             tasks: tasks
@@ -237,11 +242,7 @@
             listId: self.props.listId
           };
 
-          $.ajax(server + "methods/todos/insert", {
-            method: "post",
-            data: JSON.stringify([newTask]),
-            contentType: "application/json"
-          });
+          callMethod("methods/todos/insert", [newTask]);
 
           self.setState({
             tasks: [newTask].concat(self.state.tasks)
@@ -252,13 +253,7 @@
             return task._id === id;
           });
 
-          $.ajax(server + "methods/todos/remove", {
-            method: "post",
-            data: JSON.stringify([
-              {_id: id}
-            ]),
-            contentType: "application/json"
-          });
+          callMethod("methods/todos/remove", [{_id: id}]);
 
           this.setState({
             tasks: tasks

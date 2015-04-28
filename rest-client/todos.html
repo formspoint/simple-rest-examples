@@ -49,6 +49,11 @@
       .nav.nav-pills a:hover {
         background: white;
       }
+
+      .checked label {
+        text-decoration: line-through;
+        color: #999;
+      }
     </style>
   </head>
 
@@ -162,7 +167,7 @@
               $date: new Date().getTime()
             },
             text: text,
-            listId: self.state.selectedListId
+            listId: self.props.listId
           };
 
           $.ajax(server + "methods/todos/insert", {
@@ -208,13 +213,20 @@
                   self.deleteTask(task._id);
                 };
 
-                return <li key={task._id} className="list-group-item">
-                  <input type="checkbox"
-                    checked={task.checked}
-                    onClick={toggleThisTask}
-                    className="checkbox"
-                    readOnly />
-                  <label>{task.text}</label>
+                var className = "list-group-item";
+                if (task.checked) {
+                  className += " checked";
+                }
+
+                return <li key={task._id} className={className}>
+                  <label>
+                    <input type="checkbox"
+                      checked={task.checked}
+                      onClick={toggleThisTask}
+                      className="checkbox"
+                      readOnly />
+                    {task.text}
+                  </label>
                   <a href="#"
                     className="btn btn-xs btn-danger pull-right"
                     onClick={deleteThisTask}>&times;</a>
@@ -277,8 +289,6 @@
         },
         render: function () {
           var self = this;
-
-          console.log(self.state);
 
           return <div className="container">
             <div className="row">

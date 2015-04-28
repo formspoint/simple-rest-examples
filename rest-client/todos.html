@@ -1,0 +1,300 @@
+<!DOCTYPE HTML>
+<html>
+  <head>
+    <script src="https://code.jquery.com/jquery-2.1.3.min.js" type="text/javascript"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js" type="text/javascript"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/0.13.2/react-with-addons.js" type="text/javascript"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/0.13.2/JSXTransformer.js" type="text/javascript"></script>
+
+    <!-- Latest compiled and minified CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css">
+
+    <!-- Optional theme -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap-theme.min.css">
+
+    <style>
+      html {
+        padding-top: 20px;
+        position: fixed;
+        height: 100%;
+        width: 100%;
+
+        background: #e0f3ff; /* Old browsers */
+        background: -moz-linear-gradient(top, #e0f3ff 0%, #ffffff 100%); /* FF3.6+ */
+        background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#e0f3ff), color-stop(100%,#ffffff)); /* Chrome,Safari4+ */
+        background: -webkit-linear-gradient(top, #e0f3ff 0%,#ffffff 100%); /* Chrome10+,Safari5.1+ */
+        background: -o-linear-gradient(top, #e0f3ff 0%,#ffffff 100%); /* Opera 11.10+ */
+        background: -ms-linear-gradient(top, #e0f3ff 0%,#ffffff 100%); /* IE10+ */
+        background: linear-gradient(to bottom, #e0f3ff 0%,#ffffff 100%); /* W3C */
+        filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#e0f3ff', endColorstr='#ffffff',GradientType=0 ); /* IE6-9 */
+      }
+
+      body {
+        background: none;
+      }
+
+      .checkbox {
+        margin-right: 10px !important;
+        display: inline-block;
+      }
+
+      .add-task-form {
+        margin-bottom: 20px;
+      }
+
+      .xs-list-selector {
+        margin-bottom: 20px;
+      }
+
+      .nav.nav-pills a:hover {
+        background: white;
+      }
+    </style>
+  </head>
+
+  <body>
+    <script type="text/jsx" charset="utf-8">
+      // @jsx React.DOM
+      var server = "http://localhost:3000/";
+
+      var Sidebar = React.createClass({
+        getDefaultProps: function () {
+          return {
+            lists: []
+          };
+        },
+        render: function () {
+          var self = this;
+
+          var handleSelectChange = function (event) {
+            self.props.setSelectedListId(event.target.value);
+          };
+
+          return <div className="col-sm-4">
+            <ul className="nav nav-stacked nav-pills hidden-xs">{
+              self.props.lists.map(function (list) {
+                var selectThisList = function (event) {
+                  event.preventDefault();
+                  self.props.setSelectedListId(list._id);
+                };
+
+                var className;
+                if (list._id === self.props.selectedListId) {
+                  className = "active";
+                }
+
+                return <li key={list._id} className={className}>
+                  <a href="#" onClick={selectThisList}>
+                    {list.name}
+                  </a>
+                </li>;
+              })
+            }</ul>
+            <select className="form-control xs-list-selector visible-xs"
+              defaultValue={self.props.selectedListId}
+              onChange={handleSelectChange}>{
+              self.props.lists.map(function (list) {
+                return <option key={list._id} value={list._id}>
+                  {list.name}
+                </option>;
+              })
+            }</select>
+          </div>
+        }
+      });
+
+      var List = React.createClass({
+        getInitialState: function () {
+          return {
+            tasks: []
+          };
+        },
+        componentWillReceiveProps: function (newProps) {
+          this.loadTasks(newProps.listId);
+        },
+        setTaskChecked: function (id, newCheckedValue) {
+          var tasks = _.map(this.state.tasks, function (task) {
+            if (task._id === id) {
+              task.checked = newCheckedValue;
+            }
+
+            return task;
+          });
+
+          $.ajax(server + "methods/todos/update", {
+            method: "post",
+            data: JSON.stringify([
+              {_id: id},
+              {
+                $set: {
+                  checked: newCheckedValue
+                }
+              }
+            ]),
+            contentType: "application/json"
+          });
+
+          this.setState({
+            tasks: tasks
+          });
+        },
+        loadTasks: function (listId) {
+          var self = this;
+
+          if (listId) {
+            $.get(server + "publications/todos/" + listId,
+              function (data) {
+                var tasks = _.sortBy(data.todos, "createdAt");
+                tasks.reverse();
+
+                self.setState({
+                  tasks: tasks
+                });
+              });
+          }
+        },
+        addTask: function (text) {
+          var self = this;
+
+          var newTask = {
+            _id: _.random(1000000000).toString(),
+            createdAt: {
+              $date: new Date().getTime()
+            },
+            text: text,
+            listId: self.state.selectedListId
+          };
+
+          $.ajax(server + "methods/todos/insert", {
+            method: "post",
+            data: JSON.stringify([newTask]),
+            contentType: "application/json"
+          });
+
+          self.setState({
+            tasks: [newTask].concat(self.state.tasks)
+          });
+        },
+        deleteTask: function (id) {
+          var tasks = _.reject(this.state.tasks, function (task) {
+            return task._id === id;
+          });
+
+          $.ajax(server + "methods/todos/remove", {
+            method: "post",
+            data: JSON.stringify([
+              {_id: id}
+            ]),
+            contentType: "application/json"
+          });
+
+          this.setState({
+            tasks: tasks
+          });
+        },
+        render: function () {
+          var self = this;
+
+          return <div className="col-sm-8">
+            <AddTask addTask={self.addTask} />
+            <ul className="list-group">{
+              self.state.tasks.map(function (task) {
+                var toggleThisTask = function () {
+                  self.setTaskChecked(task._id, ! task.checked);
+                };
+
+                var deleteThisTask = function (event) {
+                  event.preventDefault();
+                  self.deleteTask(task._id);
+                };
+
+                return <li key={task._id} className="list-group-item">
+                  <input type="checkbox"
+                    checked={task.checked}
+                    onClick={toggleThisTask}
+                    className="checkbox"
+                    readOnly />
+                  <label>{task.text}</label>
+                  <a href="#"
+                    className="btn btn-xs btn-danger pull-right"
+                    onClick={deleteThisTask}>&times;</a>
+                </li>
+              })
+            }</ul>
+          </div>
+        }
+      });
+
+      var AddTask = React.createClass({
+        render: function () {
+          var self = this;
+
+          var addTask = function (event) {
+            event.preventDefault();
+            self.props.addTask(event.target.text.value);
+            event.target.text.value = "";
+          };
+
+          return <form onSubmit={addTask} className="add-task-form">
+            <input name="text" type="text" placeholder="New task..."
+              className="form-control input-lg" />
+          </form>;
+        }
+      });
+
+      var Page = React.createClass({
+        getInitialState: function () {
+          return {
+            lists: [],
+            selectedListId: null
+          };
+        },
+        refreshLists: function () {
+          var self = this;
+
+          $.get(server + "publications/publicLists", function (data) {
+            var lists = data.lists;
+
+            // If there is no selected list, or the currently selected list has
+            // been deleted
+            if ((! self.state.selectedListId) ||
+                (! _.findWhere(lists, {_id: self.state.selectedListId}))) {
+              self.setSelectedListId(lists[0]._id);
+            }
+
+            self.setState({
+              lists: lists
+            });
+          });
+        },
+        setSelectedListId: function (id) {
+          this.setState({
+            selectedListId: id
+          });
+        },
+        componentDidMount: function () {
+          this.refreshLists();
+        },
+        render: function () {
+          var self = this;
+
+          console.log(self.state);
+
+          return <div className="container">
+            <div className="row">
+              <Sidebar
+                selectedListId={self.state.selectedListId}
+                lists={self.state.lists}
+                setSelectedListId={self.setSelectedListId} />
+              <List listId={self.state.selectedListId}/>
+            </div>
+          </div>
+        }
+      });
+
+      React.render(<div>
+          <Page />
+        </div>, document.body);
+    </script>
+  </body>
+</html>

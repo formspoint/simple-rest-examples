@@ -1,4 +1,4 @@
-# Examples of using [simple:rest]
+# Examples of using [simple:rest](https://github.com/stubailo/meteor-rest/blob/master/packages/rest/README.md#example-code-with-jquery)
 
 A simple example of exposing and consuming a REST API from the standard Todos example app. The API is consumed from a basic React.js web app that is a single static HTML file.
 
